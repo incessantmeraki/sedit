@@ -1,5 +1,6 @@
 #include <gtk/gtk.h>
 #include <gdk/gdkkeysyms.h>
+#include <string.h>
 
 //Widget for Search Bar
 typedef struct _SearchBar {
@@ -9,6 +10,103 @@ typedef struct _SearchBar {
   GtkWidget *qbutton;
   GtkWidget *text_view;
 } SearchBar;
+
+//Widget for open-dialog
+typedef struct _OpenDialog{
+  GtkWidget *window;
+  GtkTextBuffer *buffer;
+  gchar *filename;
+} OpenDialog;
+
+//Widget for new dialog
+typedef struct _NewDialog{
+  GtkWidget *window;
+  GtkWidget *text_view;
+  GtkTextBuffer *buffer;
+  GtkWidget *statusbar;
+} NewDialog;
+
+//Function invoked when save menu item is clicked
+void save_dialog_selected(GtkWidget *widget, OpenDialog *sdlog){
+  GtkWidget *dialog;
+  gint response;
+  GtkTextBuffer *buffer;
+
+  if (strcmp( gtk_window_get_title(GTK_WINDOW(sdlog->window)) , "Untitled") == 0)
+  {
+
+    dialog = gtk_file_chooser_dialog_new("Save File", GTK_WINDOW(sdlog->window),
+     GTK_FILE_CHOOSER_ACTION_SAVE,
+     GTK_STOCK_SAVE, GTK_RESPONSE_APPLY,
+     GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+     NULL);
+
+    response = gtk_dialog_run(GTK_DIALOG(dialog));
+
+    if (response == GTK_RESPONSE_APPLY)
+    {
+     gchar *filename;
+     gchar *contents;
+     GtkTextIter start, end;
+     filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
+     buffer = sdlog->buffer;
+     gtk_text_buffer_get_bounds(buffer, &start, &end);
+     contents = gtk_text_buffer_get_text(buffer, &start, &end, FALSE);
+     g_file_set_contents(filename, contents, -1, NULL);
+     gtk_window_set_title(GTK_WINDOW(sdlog->window), filename);
+     sdlog->filename = filename;
+   }
+   else if (response == GTK_RESPONSE_CANCEL)
+   {
+     gtk_widget_destroy(dialog);
+     return;
+   }
+   gtk_widget_destroy(dialog);
+ }
+ else
+ {
+   GtkTextIter start, end;
+   const gchar *filename = gtk_window_get_title(GTK_WINDOW(sdlog->window)); 
+   gchar *contents;
+   gtk_text_buffer_get_bounds(sdlog->buffer, &start, &end);
+   contents = gtk_text_buffer_get_text(sdlog->buffer, &start, &end, FALSE);
+   g_file_set_contents(filename, contents, -1, NULL);
+ }
+}
+
+//Function invoked when new menu item is clicked
+void new_dialog_selected(GtkWidget *widget, NewDialog *ndlog){
+ gtk_widget_show(ndlog->text_view);
+ gtk_widget_show(ndlog->statusbar);
+ gtk_window_set_title(GTK_WINDOW(ndlog->window), "Untitled");
+ gtk_text_buffer_set_text(ndlog->buffer, "", -1);
+}
+
+//Function invoked when open menu item is clicked
+void open_dialog_selected(GtkWidget *widget, OpenDialog *odlog){
+
+  GtkWidget *dialog;
+
+  dialog = gtk_file_chooser_dialog_new ("Open File",
+    GTK_WINDOW(odlog->window),
+    GTK_FILE_CHOOSER_ACTION_OPEN,
+    GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+    GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
+    NULL);
+
+  if (gtk_dialog_run (GTK_DIALOG (dialog)) == GTK_RESPONSE_ACCEPT)
+  {
+   gchar *filename;
+   gchar *contents;
+   filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (dialog));
+   g_file_get_contents(filename, &contents, NULL, NULL);
+   gtk_text_buffer_set_text(odlog->buffer, contents, -1);
+   gtk_window_set_title(GTK_WINDOW(odlog->window), filename);
+   odlog->filename=filename;
+   g_free (filename);
+ }
+ gtk_widget_destroy(dialog);
+}
 
 //Functions related to search-bar
 void find (GtkTextView *text_view, const gchar *text, GtkTextIter *iter)
@@ -168,11 +266,14 @@ void mark_set_callback(GtkTextBuffer *buffer,
 
 int main(int argc, char *argv[]) {
 
+
+
+  //Definitions
+
+  //Contains definitions for layout related items
   GtkWidget *window;
   GtkWidget *vbox;
   GtkWidget *hbox;
-
-  //Definitions
 
   //Contains Menubar, Menu and menuitems inside it in an iterative way
   GtkWidget *menubar; 
@@ -220,7 +321,7 @@ int main(int argc, char *argv[]) {
   window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
   gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
   gtk_window_set_default_size(GTK_WINDOW(window), 300, 200);
-  gtk_window_set_title(GTK_WINDOW(window), "Phase 3");
+  gtk_window_set_title(GTK_WINDOW(window), "sedit");
 
   //Setting up vbox and hbox
   vbox = gtk_vbox_new(FALSE, 2);
@@ -363,10 +464,29 @@ int main(int argc, char *argv[]) {
   g_signal_connect (G_OBJECT (sbar.qbutton), "clicked",
     G_CALLBACK (close_button_clicked), &sbar);
 
+  //initializing open dialog
+  OpenDialog odlog;
+  odlog.window = window;
+  odlog.buffer= buffer;
+
+  //initializing new dialog
+  NewDialog ndlog;
+  ndlog.window=window;
+  ndlog.buffer = buffer;
+  ndlog.text_view = text_view;
+
+
+  //initializing save dialog
+  OpenDialog sdlog;
+  sdlog.window=window;
+  sdlog.buffer=buffer;
 
   //Initializing statusbar and displaying it.
   statusbar = gtk_statusbar_new();
   gtk_box_pack_end(GTK_BOX(vbox), statusbar, FALSE, FALSE, 0);
+
+  //initializing status bar to new dialog
+  ndlog.statusbar = statusbar;
   
   //connect functions to events that is signalled by gtk
 
@@ -396,10 +516,17 @@ int main(int argc, char *argv[]) {
   g_signal_connect(G_OBJECT(findMi),"activate",
     G_CALLBACK(find_menu_selected), &sbar);
 
+  g_signal_connect(G_OBJECT(openMi),"activate",
+    G_CALLBACK(open_dialog_selected), &odlog);
+
+  g_signal_connect(G_OBJECT(newMi),"activate",
+    G_CALLBACK(new_dialog_selected), &ndlog);
+
+  g_signal_connect(G_OBJECT(saveMi),"activate",
+    G_CALLBACK(save_dialog_selected), &sdlog);
 
   g_signal_connect(buffer, "changed",
     G_CALLBACK(update_statusbar), statusbar);
-
 
   g_signal_connect_object(buffer, "mark_set", 
     G_CALLBACK(mark_set_callback), statusbar, 0);
@@ -407,12 +534,18 @@ int main(int argc, char *argv[]) {
 
   // display all the windows and enter into event loop
   gtk_widget_show_all(window);
- 
+
   //Hide find options at the start
   gtk_widget_hide(sbar.search_entry);
   gtk_widget_hide(sbar.sbutton);
   gtk_widget_hide(sbar.nbutton);
   gtk_widget_hide(sbar.qbutton);
+
+  //hide the text_viewer in the beginning
+  gtk_widget_hide(text_view);
+
+  //hide status bar
+  gtk_widget_hide(statusbar);
 
   //Display line and column number in status bar
   update_statusbar(buffer, GTK_STATUSBAR(statusbar));
