@@ -220,7 +220,7 @@ int main(int argc, char *argv[]) {
   window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
   gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
   gtk_window_set_default_size(GTK_WINDOW(window), 300, 200);
-  gtk_window_set_title(GTK_WINDOW(window), "Phase 2");
+  gtk_window_set_title(GTK_WINDOW(window), "Phase 3");
 
   //Setting up vbox and hbox
   vbox = gtk_vbox_new(FALSE, 2);
