@@ -1,29 +1,143 @@
 #include <gtk/gtk.h>
 #include <gdk/gdkkeysyms.h>
 
+//Widget for Search Bar
+typedef struct _SearchBar {
+  GtkWidget *search_entry;
+  GtkWidget *sbutton;
+  GtkWidget *nbutton;
+  GtkWidget *qbutton;
+  GtkWidget *text_view;
+} SearchBar;
+
+//Functions related to search-bar
+void find (GtkTextView *text_view, const gchar *text, GtkTextIter *iter)
+{
+  GtkTextIter mstart, mend;
+  gboolean found;
+  GtkTextBuffer *buffer;
+  GtkTextMark *last_pos;
+
+  buffer = gtk_text_view_get_buffer (GTK_TEXT_VIEW (text_view));
+  found = gtk_text_iter_forward_search (iter, text, 0, &mstart, &mend, NULL);
+
+  if (found)
+  {
+    gtk_text_buffer_select_range (buffer, &mstart, &mend);
+    last_pos = gtk_text_buffer_create_mark (buffer, "last_pos", 
+      &mend, FALSE);
+    gtk_text_view_scroll_mark_onscreen (text_view, last_pos);
+  }
+}
+
+void close_button_clicked (GtkWidget *close_button, SearchBar *sbar)
+{
+  gtk_widget_hide(sbar->search_entry);
+  gtk_widget_hide(sbar->sbutton);
+  gtk_widget_hide(sbar->nbutton);
+  gtk_widget_hide(sbar->qbutton);
+}
+
+void find_menu_selected(GtkWidget *widget, SearchBar *sbar)
+{
+  gtk_widget_show(sbar->search_entry);
+  gtk_widget_show(sbar->sbutton);
+  gtk_widget_show(sbar->nbutton);
+  gtk_widget_show(sbar->qbutton);
+}
+
+
+void search_button_clicked (GtkWidget *search_button, SearchBar *sbar)
+{
+  const gchar *text;
+  GtkTextBuffer *buffer;
+  GtkTextIter iter;
+
+  text = gtk_entry_get_text (GTK_ENTRY (sbar->search_entry));
+
+  buffer = gtk_text_view_get_buffer (GTK_TEXT_VIEW (sbar->text_view));
+  gtk_text_buffer_get_start_iter (buffer, &iter);
+  
+  find (GTK_TEXT_VIEW (sbar->text_view), text, &iter);
+}
+
+void next_button_clicked (GtkWidget *next_button, SearchBar *sbar)
+{
+  const gchar *text;
+  GtkTextBuffer *buffer;
+  GtkTextMark *last_pos;
+  GtkTextIter iter;
+
+  text = gtk_entry_get_text (GTK_ENTRY (sbar->search_entry));
+  
+  buffer = gtk_text_view_get_buffer (GTK_TEXT_VIEW (sbar->text_view));
+
+  last_pos = gtk_text_buffer_get_mark (buffer, "last_pos");
+  if (last_pos == NULL)
+    return;
+
+  gtk_text_buffer_get_iter_at_mark (buffer, &iter, last_pos);
+  find (GTK_TEXT_VIEW (sbar->text_view), text, &iter);
+}
+
+
+//Function invoked when font menu item selected
+void select_font(GtkWidget *widget, GtkWidget *widget1) {
+  GtkResponseType result;
+  GtkWidget *dialog = gtk_font_selection_dialog_new("Select Font");
+  result = gtk_dialog_run(GTK_DIALOG(dialog));
+  if (result == GTK_RESPONSE_OK || result == GTK_RESPONSE_APPLY) {
+
+   PangoFontDescription *font_desc;
+   gchar *fontname = gtk_font_selection_dialog_get_font_name(
+    GTK_FONT_SELECTION_DIALOG(dialog));
+
+   font_desc = pango_font_description_from_string(fontname);
+
+   gtk_widget_modify_font(GTK_WIDGET(widget1), font_desc);
+
+   g_free(fontname);
+ }
+
+ gtk_widget_destroy(dialog);
+}
+
+//Function invoked when about menu item is clicked
+void show_about(GtkWidget *widget, gpointer data) {
+  GtkWidget *dialog = gtk_about_dialog_new();
+  gtk_about_dialog_set_name(GTK_ABOUT_DIALOG(dialog), "sedit");
+  gtk_about_dialog_set_comments(GTK_ABOUT_DIALOG(dialog), 
+   "\nsedit is minimal text editor based on GTK +2 and C . \n");
+  gtk_about_dialog_set_website(GTK_ABOUT_DIALOG(dialog), 
+   "http://www.incessantmeraki.com");
+  gtk_dialog_run(GTK_DIALOG (dialog));
+  gtk_widget_destroy(dialog);
+}
+
+
 //Function invoked when copy option is used
-copy_to_clipboard(GtkWidget *widget, GtkTextBuffer *buffer){
+void copy_to_clipboard(GtkWidget *widget, GtkTextBuffer *buffer){
   GtkClipboard *clipboard;
   clipboard = gtk_clipboard_get(GDK_NONE);
   gtk_text_buffer_copy_clipboard(buffer, clipboard);
 }
 
 //Function invoked when cut option is used
-cut_to_clipboard(GtkWidget *widget, GtkTextBuffer *buffer){
+void cut_to_clipboard(GtkWidget *widget, GtkTextBuffer *buffer){
   GtkClipboard *clipboard;
   clipboard = gtk_clipboard_get(GDK_NONE);
   gtk_text_buffer_cut_clipboard(buffer, clipboard,TRUE);
 }
 
 //Function invoked when paste option is used
-paste_from_clipboard(GtkWidget *widget, GtkTextBuffer *buffer){
+void paste_from_clipboard(GtkWidget *widget, GtkTextBuffer *buffer){
   GtkClipboard *clipboard;
   clipboard = gtk_clipboard_get(GDK_NONE);
   gtk_text_buffer_paste_clipboard(buffer, clipboard,NULL,TRUE);
 }
 
 //Function invoked when text buffer is changed
-update_statusbar(GtkTextBuffer *buffer,
+void update_statusbar(GtkTextBuffer *buffer,
   GtkStatusbar  *statusbar) {
   gchar *msg;
   gint row, col;
@@ -56,6 +170,7 @@ int main(int argc, char *argv[]) {
 
   GtkWidget *window;
   GtkWidget *vbox;
+  GtkWidget *hbox;
 
   //Definitions
 
@@ -89,6 +204,9 @@ int main(int argc, char *argv[]) {
   GtkTextBuffer *buffer;
   GtkWidget* scrolledwindow;
 
+  //searchbar definition
+  SearchBar sbar;
+
   //Miscellaneous declaration
   // GtkClipboard *clipboard;
   GtkAccelGroup *accel_group = NULL;
@@ -96,15 +214,20 @@ int main(int argc, char *argv[]) {
   //initialize our gtk engine
   gtk_init(&argc, &argv);
 
+
+
   //properties for the main window
   window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
   gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
   gtk_window_set_default_size(GTK_WINDOW(window), 300, 200);
   gtk_window_set_title(GTK_WINDOW(window), "Phase 2");
 
-  //Layout to align menu items vertically
+  //Setting up vbox and hbox
   vbox = gtk_vbox_new(FALSE, 2);
+  hbox = gtk_hbox_new(FALSE, 2);
   gtk_container_add(GTK_CONTAINER(window), vbox);
+  gtk_box_pack_start (GTK_BOX (vbox), hbox, FALSE, FALSE, 0);
+
 
   //initilize accel group which enables shortcut(accelerator) keys
   accel_group = gtk_accel_group_new();
@@ -220,11 +343,33 @@ int main(int argc, char *argv[]) {
   // Initializing buffer
   buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(text_view));
 
+  //Set up search bar
+  sbar.text_view = text_view;
+  sbar.search_entry = gtk_entry_new ();
+  gtk_box_pack_start (GTK_BOX (hbox), sbar.search_entry, TRUE, TRUE, 0);
+
+  sbar.sbutton = gtk_button_new_with_label ("Search");  
+  gtk_box_pack_start (GTK_BOX (hbox),sbar.sbutton, FALSE, FALSE, 0);
+  g_signal_connect (G_OBJECT (sbar.sbutton), "clicked", 
+    G_CALLBACK (search_button_clicked), &sbar);
+
+  sbar.nbutton = gtk_button_new_with_label ("Next");
+  gtk_box_pack_start (GTK_BOX (hbox), sbar.nbutton, FALSE, FALSE, 0);
+  g_signal_connect (G_OBJECT (sbar.nbutton), "clicked",
+    G_CALLBACK (next_button_clicked), &sbar);
+
+  sbar.qbutton = gtk_button_new_with_label ("Close");
+  gtk_box_pack_start (GTK_BOX (hbox), sbar.qbutton, FALSE, FALSE, 0);
+  g_signal_connect (G_OBJECT (sbar.qbutton), "clicked",
+    G_CALLBACK (close_button_clicked), &sbar);
+
+
   //Initializing statusbar and displaying it.
   statusbar = gtk_statusbar_new();
   gtk_box_pack_end(GTK_BOX(vbox), statusbar, FALSE, FALSE, 0);
   
   //connect functions to events that is signalled by gtk
+
   g_signal_connect(G_OBJECT(window), "destroy",
     G_CALLBACK(gtk_main_quit), NULL);
 
@@ -237,11 +382,24 @@ int main(int argc, char *argv[]) {
   g_signal_connect(G_OBJECT(cutMi),"activate",
     G_CALLBACK(cut_to_clipboard),buffer);
 
-  g_signal_connect(buffer, "changed",
-    G_CALLBACK(update_statusbar), statusbar);
+
+  g_signal_connect(G_OBJECT(aboutMi),"activate",
+    G_CALLBACK(show_about),(gpointer) window);
+
 
   g_signal_connect(G_OBJECT(pasteMi),"activate",
     G_CALLBACK(paste_from_clipboard),buffer);
+
+  g_signal_connect(G_OBJECT(fontMi),"activate",
+    G_CALLBACK(select_font),text_view);
+
+  g_signal_connect(G_OBJECT(findMi),"activate",
+    G_CALLBACK(find_menu_selected), &sbar);
+
+
+  g_signal_connect(buffer, "changed",
+    G_CALLBACK(update_statusbar), statusbar);
+
 
   g_signal_connect_object(buffer, "mark_set", 
     G_CALLBACK(mark_set_callback), statusbar, 0);
@@ -249,9 +407,16 @@ int main(int argc, char *argv[]) {
 
   // display all the windows and enter into event loop
   gtk_widget_show_all(window);
+ 
+  //Hide find options at the start
+  gtk_widget_hide(sbar.search_entry);
+  gtk_widget_hide(sbar.sbutton);
+  gtk_widget_hide(sbar.nbutton);
+  gtk_widget_hide(sbar.qbutton);
 
   //Display line and column number in status bar
   update_statusbar(buffer, GTK_STATUSBAR(statusbar));
+
 
 
   gtk_main();
