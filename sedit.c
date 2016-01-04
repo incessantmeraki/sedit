@@ -1,6 +1,5 @@
 #include <gtk/gtk.h>
 #include <gdk/gdkkeysyms.h>
-#include <string.h>
 
 //Widget for Search Bar
 typedef struct _SearchBar {
@@ -266,8 +265,6 @@ void mark_set_callback(GtkTextBuffer *buffer,
 
 int main(int argc, char *argv[]) {
 
-
-
   //Definitions
 
   //Contains definitions for layout related items
@@ -296,7 +293,6 @@ int main(int argc, char *argv[]) {
   GtkWidget *helpMi;
   GtkWidget *aboutMi;
 
-
   //Contains statusBar definition
   GtkWidget *statusbar;
 
@@ -315,8 +311,6 @@ int main(int argc, char *argv[]) {
   //initialize our gtk engine
   gtk_init(&argc, &argv);
 
-
-
   //properties for the main window
   window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
   gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
@@ -328,7 +322,6 @@ int main(int argc, char *argv[]) {
   hbox = gtk_hbox_new(FALSE, 2);
   gtk_container_add(GTK_CONTAINER(window), vbox);
   gtk_box_pack_start (GTK_BOX (vbox), hbox, FALSE, FALSE, 0);
-
 
   //initilize accel group which enables shortcut(accelerator) keys
   accel_group = gtk_accel_group_new();
@@ -531,7 +524,6 @@ int main(int argc, char *argv[]) {
   g_signal_connect_object(buffer, "mark_set", 
     G_CALLBACK(mark_set_callback), statusbar, 0);
 
-
   // display all the windows and enter into event loop
   gtk_widget_show_all(window);
 
@@ -549,8 +541,6 @@ int main(int argc, char *argv[]) {
 
   //Display line and column number in status bar
   update_statusbar(buffer, GTK_STATUSBAR(statusbar));
-
-
 
   gtk_main();
 
