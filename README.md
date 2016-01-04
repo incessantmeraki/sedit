@@ -12,8 +12,8 @@ C programming language.
 * libgtk2.0-dev ( $ sudo apt-get install build-essential libgtk2.0-dev)
 
 #Build
-* $ sh compile.sh sde
-* $ ./sde
+* $ sh compile.sh sedit
+* $ ./sedit
 
 #License
 MIT
