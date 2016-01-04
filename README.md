@@ -1,4 +1,4 @@
-# sedit
+#About
 sedit is a minimal text editor which runs on Linux machine . It is implemented using Gtk and
 C programming language.
 
