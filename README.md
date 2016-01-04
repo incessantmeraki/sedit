@@ -1,6 +1,8 @@
 #About
-sedit is a minimal text editor which runs on Linux machine . It is implemented using Gtk and
-C programming language.
+![main_layout](https://github.com/incessantmeraki/incessantmeraki.github.io/blob/master/images/sedit/phase1a.png)
+
+**sedit** is a minimal text editor which runs on Linux machine . It is implemented using *Gtk* and
+*C* programming language.
 
 #Features
 * Options to Save, Open and create a new file.
